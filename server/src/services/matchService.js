@@ -170,7 +170,7 @@ export function createMatchService({
         }
       }
     };
-    await Promise.all(Array.from({ length: Math.min(RESCORE_CONCURRENCY, jobs.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(RESCORE_CONCURRENCY, aiProvider?.concurrency ?? RESCORE_CONCURRENCY, jobs.length) }, worker));
     return summary;
   }
 

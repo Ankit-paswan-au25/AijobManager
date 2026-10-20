@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { parseEncryptionKey } from "../lib/tokenCipher.js";
-import { DEFAULT_ANTHROPIC_MODEL } from "./ai.js";
+import { AI_PROVIDERS, DEFAULT_ANTHROPIC_MODEL, DEFAULT_OLLAMA_BASE_URL, OLLAMA_REQUEST_TIMEOUT_MS } from "./ai.js";
 
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -23,6 +23,12 @@ const schema = z.object({
   // AI scoring is optional. Without a key, jobs still get the deterministic score and are flagged llm_failed.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_MODEL: z.string().min(1).optional(), // default lives in config/ai.js
+  // Which provider to use. Unset = Anthropic if ANTHROPIC_API_KEY is set, otherwise AI is off.
+  AI_PROVIDER: z.enum(AI_PROVIDERS).optional(),
+  // Local models for testing (AI_PROVIDER=ollama). The model must already be pulled: ollama pull <model>.
+  OLLAMA_MODEL: z.string().min(1).optional(),
+  OLLAMA_BASE_URL: z.string().url().optional(), // default lives in config/ai.js
+  OLLAMA_TIMEOUT_MS: z.coerce.number().int().min(1000).optional(), // default lives in config/ai.js
 });
 
 const GMAIL_KEYS = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GMAIL_TOKEN_ENCRYPTION_KEY"];
@@ -56,14 +62,32 @@ export function loadConfig(source = process.env) {
     }
   }
 
-  const anthropic = config.ANTHROPIC_API_KEY
-    ? { apiKey: config.ANTHROPIC_API_KEY, model: config.ANTHROPIC_MODEL ?? DEFAULT_ANTHROPIC_MODEL }
-    : null;
+  // An explicit AI_PROVIDER that is missing what it needs is an error, not a silent "AI off".
+  const aiProvider = config.AI_PROVIDER ?? (config.ANTHROPIC_API_KEY ? "anthropic" : null);
+  if (aiProvider === "anthropic" && !config.ANTHROPIC_API_KEY) {
+    throw new Error("Incomplete AI configuration: AI_PROVIDER=anthropic needs ANTHROPIC_API_KEY");
+  }
+  if (aiProvider === "ollama" && !config.OLLAMA_MODEL) {
+    throw new Error("Incomplete AI configuration: AI_PROVIDER=ollama needs OLLAMA_MODEL");
+  }
+
+  const anthropic =
+    aiProvider === "anthropic"
+      ? { apiKey: config.ANTHROPIC_API_KEY, model: config.ANTHROPIC_MODEL ?? DEFAULT_ANTHROPIC_MODEL }
+      : null;
+  const ollama =
+    aiProvider === "ollama"
+      ? {
+          model: config.OLLAMA_MODEL,
+          baseUrl: config.OLLAMA_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL,
+          timeoutMs: config.OLLAMA_TIMEOUT_MS ?? OLLAMA_REQUEST_TIMEOUT_MS,
+        }
+      : null;
 
   const {
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GMAIL_TOKEN_ENCRYPTION_KEY, // eslint-disable-line no-unused-vars
-    ANTHROPIC_API_KEY, ANTHROPIC_MODEL, // eslint-disable-line no-unused-vars
+    ANTHROPIC_API_KEY, ANTHROPIC_MODEL, AI_PROVIDER, OLLAMA_MODEL, OLLAMA_BASE_URL, OLLAMA_TIMEOUT_MS, // eslint-disable-line no-unused-vars
     ...rest
   } = config;
-  return { ...rest, UPLOAD_DIR: path.resolve(SERVER_ROOT, config.UPLOAD_DIR), gmail, anthropic };
+  return { ...rest, UPLOAD_DIR: path.resolve(SERVER_ROOT, config.UPLOAD_DIR), gmail, anthropic, ollama, aiProvider };
 }

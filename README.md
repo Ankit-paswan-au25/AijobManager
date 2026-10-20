@@ -44,8 +44,26 @@ Edit `server/.env`:
 | `UPLOAD_DIR` | Where uploaded resumes are stored, default `server/uploads` (git-ignored). Never served over HTTP. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` | Optional. All four or none. See "Gmail setup" below. Without them `/api/gmail/*` answers 503 and the rest of the app works normally. |
 
-| `ANTHROPIC_API_KEY` | Optional. Enables AI scoring of jobs. Without it every job still gets its skill-overlap score, flagged `llmFailed`. |
+| `AI_PROVIDER` | Optional: `anthropic` or `ollama`. If unset: Anthropic when `ANTHROPIC_API_KEY` is set, otherwise AI is off. See "Local AI with Ollama" below. |
+| `ANTHROPIC_API_KEY` | Optional. Enables AI scoring of jobs. Without any AI provider every job still gets its skill-overlap score, flagged `llmFailed`. |
 | `ANTHROPIC_MODEL` | Optional. Overrides the default model set in `server/src/config/ai.js`. |
+| `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `OLLAMA_TIMEOUT_MS` | Only used with `AI_PROVIDER=ollama`. Model is required; URL defaults to `http://localhost:11434`; timeout to 10 minutes. |
+
+### Local AI with Ollama
+
+Run the same features against a local model instead of a hosted API (no key, no cost, nothing leaves your machine).
+
+1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull qwen2.5:7b-instruct`
+2. In `server/.env` set `AI_PROVIDER=ollama` and `OLLAMA_MODEL=qwen2.5:7b-instruct`, then restart the API.
+
+Things to know:
+
+- **Explicit provider, strict startup.** `AI_PROVIDER=ollama` without `OLLAMA_MODEL` (or `anthropic` without a key) stops the server with an error naming the setting. `OLLAMA_*` values alone never switch the provider on. Set `AI_PROVIDER=anthropic` (or just leave it and keep the key) to go back.
+- **Pick an instruct model, not a coder model.** The documents have strict checks (cover note 120-180 words, valid JSON shapes). A coder model such as `qwen2.5-coder:7b` writes JSON fine but ignores word counts, so cover notes are often rejected with `DOCUMENT_VALIDATION_FAILED`.
+- **Expect it to be slow on CPU.** A 7B model on CPU runs at roughly 7 tokens/s: scoring takes 10-25 s per job, and a prep kit or tailored resume takes minutes. That is why the timeout is 10 minutes and job re-scoring runs one job at a time against Ollama.
+- The server asks Ollama for an 8192-token context window (its default is small and silently cuts off long prompts) and up to 3072 output tokens.
+- Each saved document records `model_used` as `ollama:<model>`, so it is never mistaken for a hosted-model result.
+- If Ollama is not running, or the model has not been pulled, document generation answers 502 `DOCUMENT_GENERATION_FAILED` and the app keeps working (jobs fall back to the skill-overlap score, flagged `llmFailed`). The server log says which problem it was (not running, model not pulled, timeout).
 
 For the local Docker database, `DATABASE_URL` is `postgres://jobmanager:jobmanager@localhost:5433/jobmanager`.
 
@@ -227,7 +245,7 @@ TODO: Naukri cards have no skills list, so their base score only sees the job ti
 
 ### Document generation (require login and a resume)
 
-Generated **only when the user asks** (never after a sync, scoring or resume save). Needs `ANTHROPIC_API_KEY`; without it generation returns 503 `AI_NOT_CONFIGURED`.
+Generated **only when the user asks** (never after a sync, scoring or resume save). Needs an AI provider (`ANTHROPIC_API_KEY`, or `AI_PROVIDER=ollama`); without one generation returns 503 `AI_NOT_CONFIGURED`.
 
 | Method | Path | Result |
 | --- | --- | --- |

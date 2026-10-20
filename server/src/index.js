@@ -11,7 +11,7 @@ import { createPortalAdminService } from "./services/portalAdminService.js";
 import { createGmailConnectionRepository } from "./repositories/gmailConnectionRepository.js";
 import { createJobRepository } from "./repositories/jobRepository.js";
 import { createMatchRepository } from "./repositories/matchRepository.js";
-import { createAnthropicProvider } from "./services/ai/index.js";
+import { createAiProvider } from "./services/ai/index.js";
 import { createMatchService } from "./services/matchService.js";
 import { createJobService } from "./services/jobService.js";
 import { createDocumentRepository } from "./repositories/documentRepository.js";
@@ -43,8 +43,9 @@ const authService = createAuthService({
 const resumeRepository = createResumeRepository(pool);
 const jobRepository = createJobRepository(pool);
 
-// AI is optional: without ANTHROPIC_API_KEY jobs still get the skill-overlap score, flagged llm_failed.
-const aiProvider = config.anthropic ? createAnthropicProvider(config.anthropic) : null;
+// AI is optional: with no provider configured, jobs still get the skill-overlap score, flagged llm_failed.
+// AI_PROVIDER picks Anthropic or a local Ollama model (see config/ai.js).
+const aiProvider = createAiProvider(config);
 const matchService = createMatchService({
   aiProvider,
   matchRepository: createMatchRepository(pool),
