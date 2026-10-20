@@ -10,6 +10,7 @@ export function createScriptedProvider(script = [], { respond = null } = {}) {
   const queue = [...script];
   const provider = {
     name: "scripted",
+    model: "scripted-model",
     prompts: [],
     get calls() {
       return provider.prompts.length;

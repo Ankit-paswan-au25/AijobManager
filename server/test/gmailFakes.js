@@ -101,12 +101,16 @@ export function createInMemoryJobRepository({ matchRepository = null } = {}) {
         .filter((u) => u.user_id === userId)
         .map((u) => jobs.find((j) => j.id === u.job_id))
         .filter((j) => !onlyUnscored || !matchOf(userId, j.id))
-        .map((j) => ({ id: j.id, title: j.title, company: j.company, raw_snippet: j.raw_snippet }));
+        .map((j) => ({ id: j.id, title: j.title, company: j.company, location: j.location, raw_snippet: j.raw_snippet }));
     },
     async findForScoring(userId, jobId) {
       const link = userJobs.find((u) => u.user_id === userId && u.job_id === jobId);
       const j = link && jobs.find((x) => x.id === jobId);
-      return j ? { id: j.id, title: j.title, company: j.company, raw_snippet: j.raw_snippet } : null;
+      return j ? { id: j.id, title: j.title, company: j.company, location: j.location, raw_snippet: j.raw_snippet } : null;
+    },
+    async findOneForUser(userId, jobId) {
+      const item = (await this.listForUser(userId)).find((x) => x.id === jobId);
+      return item ? { ...item, rawSnippet: jobs.find((j) => j.id === jobId).raw_snippet } : null;
     },
 
     async saveForUser(userId, parsedJobs) {

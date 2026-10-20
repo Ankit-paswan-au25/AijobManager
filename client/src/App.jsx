@@ -8,6 +8,8 @@ import Home from "./pages/Home.jsx";
 import ResumeSetup from "./pages/ResumeSetup.jsx";
 import Portals from "./pages/Portals.jsx";
 import Admin from "./pages/Admin.jsx";
+import Jobs from "./pages/Jobs.jsx";
+import JobDetail from "./pages/JobDetail.jsx";
 
 export default function App() {
   return (
@@ -25,6 +27,8 @@ export default function App() {
         <Route element={<RequireResume />}>
           <Route path="/" element={<Home />} />
           <Route path="/portals" element={<Portals />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

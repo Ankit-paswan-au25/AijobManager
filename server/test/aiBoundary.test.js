@@ -29,7 +29,7 @@ describe("AI provider boundary", () => {
       .map((f) => path.relative(SRC, f).replaceAll("\\", "/"))
       .filter((f) => !f.startsWith("services/ai/"))
       .sort();
-    expect(importers).toEqual(["index.js", "services/matchService.js"]);
+    expect(importers).toEqual(["index.js", "services/documents/askJson.js", "services/matchService.js"]);
   });
 
   it("there is no apply endpoint: the app never applies for the user", () => {

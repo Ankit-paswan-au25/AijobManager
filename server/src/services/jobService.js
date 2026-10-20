@@ -1,3 +1,5 @@
+import { notFound } from "../lib/errors.js";
+import { isLimitedInfo } from "../lib/limitedInfo.js";
 import { labelForScore } from "./matchService.js";
 
 const time = (d) => new Date(d).getTime();
@@ -10,6 +12,21 @@ const COMPARATORS = {
 
 export function createJobService({ jobRepository }) {
   return {
+    /** GET /api/jobs/:id. The job detail page's data: one job with its match and the short snippet we have. */
+    async get(userId, jobId) {
+      const job = await jobRepository.findOneForUser(userId, jobId);
+      if (!job) throw notFound("Job not found");
+      const { rawSnippet, ...rest } = job;
+      return {
+        job: {
+          ...rest,
+          snippet: rawSnippet,
+          limitedInfo: isLimitedInfo({ raw_snippet: rawSnippet }),
+          match: job.match ? { ...job.match, label: labelForScore(job.match.score) } : null,
+        },
+      };
+    },
+
     /**
      * Lists the user's jobs, best first.
      * - Scored jobs below `minScore` are hidden (default 80, set by the route); `hiddenBelowMinScore` says how many.

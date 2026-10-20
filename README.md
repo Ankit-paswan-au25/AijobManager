@@ -196,11 +196,32 @@ Scoring runs in the background, never on a timer: after a Gmail sync adds jobs (
 
 AI code lives in `server/src/services/ai/` (`complete(prompt)` interface + Anthropic provider). Only services use it; route handlers never do (a test enforces this). Tests use a scripted fake provider and never need a key.
 
-TODO: Naukri cards have no skills list, so their base score only sees the job title. Pagination for `GET /api/jobs`. No UI for jobs yet.
+TODO: Naukri cards have no skills list, so their base score only sees the job title. Pagination for `GET /api/jobs`.
+
+### Document generation (require login and a resume)
+
+Generated **only when the user asks** (never after a sync, scoring or resume save). Needs `ANTHROPIC_API_KEY`; without it generation returns 503 `AI_NOT_CONFIGURED`.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/jobs/:id` | 200 `{ job }` with `snippet`, `limitedInfo`, `jobUrl` (null when the email had no clean link) and `match`. 404 if not yours. |
+| POST | `/api/jobs/:id/documents` body `{ "type": "resume" \| "cover_note" \| "prep_kit" }` | 201 `{ document }`. A new version every call; older versions stay in the table. |
+| GET | `/api/jobs/:id/documents` | 200 `{ documents: { resume, cover_note, prep_kit } }`, the latest version of each (null if never generated). |
+
+A document is `{ id, jobId, type, content, limitedInfo, limitedInfoNote, modelUsed, generatedAt, version }`. `content.text` is the plain text the Copy button uses. `limitedInfo` is true when `raw_snippet` is under 100 characters, and the note is "Based on limited job details. Open the posting for the full description."
+
+- **Tailored resume** is validated before it is stored (`services/documents/resumeValidation.js`). Every skill, employer, job title, date range, year, school, degree and project in the output must appear in the original resume; for form resumes each experience entry must match an original entry. Any new item rejects the reply; it is regenerated once with the problems listed; if it fails again the user gets 422 `DOCUMENT_VALIDATION_FAILED` and nothing is stored.
+- **Cover note**: 120–180 words, no `[placeholders]`. **Prep kit**: 10 questions with answer approaches, topics with YouTube *search phrases* (replies containing URLs are rejected), 5 questions to ask.
+- Other errors: 502 `DOCUMENT_GENERATION_FAILED` (model unreachable or not JSON), 403 `RESUME_REQUIRED`, 409 `GENERATION_IN_PROGRESS` (same document already being generated).
+- Privacy: for form resumes the name and contact details are never sent and are re-attached by the server. For uploaded resumes, emails and phone numbers are masked before sending, so the tailored result has no contact header (`content.contactOmitted`).
+
+Limits: the validator checks names, titles, dates and skills from the dictionary, but **not invented numbers or achievements** (TODO). The cover note and prep kit are constrained by the prompt only, plus the length, placeholder and URL checks.
+
+UI: `/jobs` lists jobs and `/jobs/:id` has the tabs Match, Tailored Resume, Cover Note and Prep Kit, with Regenerate and Copy on each document and an "Open job posting" link. The page states that the user applies on the portal themselves.
 
 ## Not built yet
 
-Document generation (tailored resume, cover note, prep kit); a Gmail/jobs UI; a sync scheduler. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
+A Gmail connect/sync UI and a sync scheduler. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
 
 ## Project rules
 

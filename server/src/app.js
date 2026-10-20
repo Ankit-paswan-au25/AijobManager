@@ -20,7 +20,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
  */
 export function createApp({
   config, authService, resumeService, portalService, portalAdminService, gmailService = null,
-  jobService = null, matchService = null,
+  jobService = null, matchService = null, documentService = null,
 }) {
   const app = express();
   app.disable("x-powered-by");
@@ -42,10 +42,10 @@ export function createApp({
   app.use("/api/gmail", createGmailRouter({ gmailService, requireAuth, requireResume, config }));
 
   if (jobService && matchService) {
-    app.use("/api/jobs", createJobsRouter({ jobService, matchService, requireAuth, requireResume }));
+    app.use("/api/jobs", createJobsRouter({ jobService, matchService, documentService, requireAuth, requireResume }));
   }
 
-  // TODO(later phases): mount further routers here (documents, ...), behind requireResume.
+  // TODO(later phases): mount further routers here, behind requireResume.
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

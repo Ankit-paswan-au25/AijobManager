@@ -3,6 +3,8 @@ import {
   LIMITED_INFO_NOTE, LLM_ATTEMPTS, RESCORE_CONCURRENCY, RESUME_EXCERPT_CHARS, SCORE_LABELS, SHORT_SNIPPET_CHARS,
 } from "../config/matching.js";
 import { AppError, notFound } from "../lib/errors.js";
+import { extractJson } from "../lib/extractJson.js";
+import { unfence } from "../lib/promptText.js"; // job text comes from emails: fenced, and fence markers removed
 import { AiProviderError } from "./ai/provider.js";
 import { extractSkills } from "./skillExtractor.js";
 
@@ -43,9 +45,6 @@ function skillOverlap(resumeSkills, job) {
   return { jobSkills, matched, missing, score };
 }
 
-// Job text comes from emails, so it is untrusted: it is fenced, and the fence markers are removed from it.
-const unfence = (s) => String(s ?? "").replace(/<\/?(job_posting|candidate)>/gi, "").trim();
-
 function buildPrompt(profile, job) {
   return [
     "You are scoring how well a candidate's resume matches a job posting.",
@@ -66,15 +65,6 @@ function buildPrompt(profile, job) {
     '{"score": <integer 0-100, how well the candidate fits>, "reasoning": "<2-3 sentences>", "skill_gaps": ["<skill the job asks for that the candidate lacks>"]}',
     "Use an empty skill_gaps array if there are none. Base the score only on the information given.",
   ].join("\n");
-}
-
-/** Pulls the JSON object out of a reply, tolerating ```json fences or a short lead-in sentence. */
-function extractJson(text) {
-  const t = String(text ?? "");
-  const start = t.indexOf("{");
-  const end = t.lastIndexOf("}");
-  if (start < 0 || end < start) throw new SyntaxError("no JSON object in reply");
-  return JSON.parse(t.slice(start, end + 1));
 }
 
 const uniqueCaseInsensitive = (items) => {

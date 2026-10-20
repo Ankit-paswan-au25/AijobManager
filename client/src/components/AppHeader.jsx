@@ -20,6 +20,7 @@ export default function AppHeader({ withResumeNav = true }) {
         <Link to="/" className="text-xl font-semibold">AI Job Manager</Link>
         <nav className="flex gap-4">
           {withResumeNav && <NavLink to="/" end className={linkClass}>Home</NavLink>}
+          {withResumeNav && <NavLink to="/jobs" className={linkClass}>Jobs</NavLink>}
           {withResumeNav && <NavLink to="/portals" className={linkClass}>Portals</NavLink>}
           {user.isAdmin && <NavLink to="/admin" className={linkClass}>Admin</NavLink>}
         </nav>

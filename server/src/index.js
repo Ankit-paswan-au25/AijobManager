@@ -14,6 +14,8 @@ import { createMatchRepository } from "./repositories/matchRepository.js";
 import { createAnthropicProvider } from "./services/ai/index.js";
 import { createMatchService } from "./services/matchService.js";
 import { createJobService } from "./services/jobService.js";
+import { createDocumentRepository } from "./repositories/documentRepository.js";
+import { createDocumentService } from "./services/documentService.js";
 import { createGmailClient } from "./services/gmail/gmailClient.js";
 import { createGmailService } from "./services/gmailService.js";
 import { createTokenCipher } from "./lib/tokenCipher.js";
@@ -40,6 +42,12 @@ const matchService = createMatchService({
   resumeRepository,
 });
 const jobService = createJobService({ jobRepository });
+const documentService = createDocumentService({
+  aiProvider,
+  documentRepository: createDocumentRepository(pool),
+  jobRepository,
+  resumeRepository,
+});
 
 const resumeService = createResumeService({
   resumeRepository,
@@ -66,7 +74,7 @@ const gmailService = config.gmail
   : null;
 
 const app = createApp({
-  config, authService, resumeService, portalService, portalAdminService, gmailService, jobService, matchService,
+  config, authService, resumeService, portalService, portalAdminService, gmailService, jobService, matchService, documentService,
 });
 const server = app.listen(config.PORT, () => {
   console.log(`API listening on http://localhost:${config.PORT}`);

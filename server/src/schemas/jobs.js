@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DOCUMENT_TYPES } from "../config/documents.js";
 import { DEFAULT_MIN_SCORE } from "../config/matching.js";
 
 export const USER_JOB_STATUSES = ["new", "saved", "applied", "interview", "rejected", "archived"];
@@ -9,5 +10,7 @@ export const listJobsQuerySchema = z.object({
   min_score: z.coerce.number().int().min(0).max(100).default(DEFAULT_MIN_SCORE),
   sort: z.enum(["score", "received_at"]).default("score"),
 });
+
+export const createDocumentSchema = z.object({ type: z.enum(DOCUMENT_TYPES) }).strict();
 
 export const jobIdParamsSchema = z.object({ id: z.string().uuid("must be a valid id") });
