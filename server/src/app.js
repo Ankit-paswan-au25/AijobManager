@@ -6,6 +6,7 @@ import { createResumesRouter } from "./routes/resumes.js";
 import { createPortalsRouter } from "./routes/portals.js";
 import { createUsersRouter } from "./routes/users.js";
 import { createAdminRouter } from "./routes/admin.js";
+import { createGmailRouter } from "./routes/gmail.js";
 import { createRequireAuth } from "./middleware/requireAuth.js";
 import { createRequireResume } from "./middleware/requireResume.js";
 import { requireAdmin } from "./middleware/requireAdmin.js";
@@ -16,7 +17,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
  * No request logging middleware is used on purpose: bodies contain passwords and resumes.
  * Uploaded files are never served statically; they are only read by server code.
  */
-export function createApp({ config, authService, resumeService, portalService, portalAdminService }) {
+export function createApp({ config, authService, resumeService, portalService, portalAdminService, gmailService = null }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(helmet());
@@ -34,7 +35,9 @@ export function createApp({ config, authService, resumeService, portalService, p
   // Admin routes don't need a resume: reviewing portals isn't part of the job-seeker flow.
   app.use("/api/admin", createAdminRouter({ portalAdminService, requireAuth, requireAdmin }));
 
-  // TODO(later phases): mount further routers here (gmail, jobs, ...), behind requireResume.
+  app.use("/api/gmail", createGmailRouter({ gmailService, requireAuth, requireResume, config }));
+
+  // TODO(later phases): mount further routers here (jobs, matching, ...), behind requireResume.
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

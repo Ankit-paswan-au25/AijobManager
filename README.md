@@ -42,6 +42,9 @@ Edit `server/.env`:
 | `PORT` | API port, default 4000. |
 | `CLIENT_ORIGIN` | Default `http://localhost:5173`. |
 | `UPLOAD_DIR` | Where uploaded resumes are stored, default `server/uploads` (git-ignored). Never served over HTTP. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` | Optional. All four or none. See "Gmail setup" below. Without them `/api/gmail/*` answers 503 and the rest of the app works normally. |
+
+For the local Docker database, `DATABASE_URL` is `postgres://jobmanager:jobmanager@localhost:5433/jobmanager`.
 
 `.env` is git-ignored. Never commit real secrets.
 
@@ -125,13 +128,53 @@ npm run make-admin -- someone@example.com --revoke
 
 Non-admins get `403 FORBIDDEN`. The admin page is at `/admin` (a link shows in the header for admins).
 
+### Gmail job alerts (require login and a resume)
+
+The app reads **only** job-alert emails from the sender addresses listed in `server/src/config/alertSenders.js` (the single allowlist) and only the last 30 days. It uses the `gmail.readonly` scope and nothing else. It never logs in to a job portal, scrapes one, or applies for you.
+
+| Portal | Sender | Status |
+| --- | --- | --- |
+| Naukri | `naukrialerts@naukri.com` | enabled, parser tested against `naukri_1.eml` |
+| Indeed | `donotreply@jobalert.indeed.com` | enabled, parser tested against `indeed.eml` |
+| Shine | `jobs@jobsalert.shine.com` | enabled, parser tested against `shine_1.eml` |
+| Glassdoor | `noreply@glassdoor.com` | **disabled**: no sample email yet, no parser |
+| Wellfound | `team@hi.wellfound.com` | **disabled**: no sample email yet, no parser |
+| foundit | `jobmessenger@monsterindia.com` | **disabled**: no sample email yet, no parser |
+
+To enable a portal: add its real sample `.eml` to `server/fixtures/alerts/`, write its parser in `server/src/services/alerts/parsers/`, register it in `alertParser.js`, add tests, then set `enabled: true`.
+
+**Gmail setup**
+
+1. In Google Cloud Console create an OAuth client of type "Web application", enable the Gmail API, and add the `gmail.readonly` scope on the consent screen (add yourself and friends as test users while the app is unverified).
+2. Set the authorized redirect URI to `http://localhost:5173/api/gmail/callback` (goes through the Vite proxy, so the session cookie is sent) and put the same value in `GOOGLE_REDIRECT_URI`.
+3. Generate the token encryption key and put it in `GMAIL_TOKEN_ENCRYPTION_KEY`: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Losing or changing it means users must reconnect.
+4. There is no Gmail button in the UI yet. To connect, log in, then open `http://localhost:5173/api/gmail/connect` in the same browser.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/gmail/connect` | 302 to Google's consent screen |
+| GET | `/api/gmail/callback` | Google returns here; redirects to `CLIENT_ORIGIN/?gmail=connected\|denied\|error` |
+| POST | `/api/gmail/disconnect` | 204. Revokes at Google (best effort) and deletes the stored token |
+| POST | `/api/gmail/sync` | 200 `{ sync: { messagesFound, messagesIgnored, emailsParsed, emailsSkipped[], jobsFound, jobsInserted, userJobsCreated, linksNeeded, ... } }`. On demand only, no background job |
+
+How it works:
+
+- Refresh tokens are encrypted at rest (AES-256-GCM). Access tokens are never stored. Tokens, email bodies and message ids are never logged.
+- Sender matching uses the full address exactly; display names are ignored. Gmail's search is fuzzy, so the address is verified again from the message headers before a body is fetched. Look-alike domains and other senders are never read.
+- Each job card becomes one `jobs` row (shared, deduplicated by `job_url`, else by portal + title + company + location) and one `user_jobs` row per user (status `new`). Syncing twice creates no duplicates.
+- Job links are rebuilt from the portal's own domain with all tracking/login parameters removed (Indeed keeps only its public job id). If no clean link exists the URL is stored as null with `needs_link = true`. **Every Shine link is treated as login-tokenized and dropped**, so all Shine jobs currently have `needs_link = true`.
+- An email from an allowed sender that yields zero jobs is recorded as skipped (with a reason, in the sync summary and as a content-free log line) and nothing from it is stored.
+- Sample emails in `server/fixtures/alerts/` come from real mailboxes and contain personalised tracking values. Redact them before sharing the repo publicly.
+
+TODO: Naukri's "jobs applied by your peers" email is a known non-job email; its skip test is a `test.todo` until that sample file exists. Naukri cards don't show experience or posted age, so those fields are null.
+
 ### Auth
 
 Passwords: 10–72 bytes, hashed with bcrypt. Sessions: JWT in an httpOnly, SameSite=Lax cookie (Secure in production).
 
 ## Not built yet
 
-Gmail, job matching and AI features. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
+Job matching, document generation and other AI features; a Gmail/jobs UI; a sync scheduler. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
 
 ## Project rules
 

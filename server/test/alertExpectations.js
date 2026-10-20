@@ -1,0 +1,63 @@
+// Expected parser output for each sample email in fixtures/alerts/. Reviewed by hand against the emails.
+// Shine job_url is always null on purpose: every Shine link is a tokenized redirect (see lib/jobLinks.js).
+// Indeed URLs are rebuilt as /viewjob?jk=<job id>; the personalised qd/rd/tk/alid/tmtk parameters are dropped.
+export const EXPECTED = {
+  indeed: {
+    file: "indeed.eml",
+    sender: "donotreply@jobalert.indeed.com",
+    portal: "indeed",
+    receivedAt: "2026-10-15T21:47:28.000Z",
+    jobs: [
+    { title: "Fullstack Developer | SDE 1/2 | Commerce", company: "Fynd", location: "Mumbai, Maharashtra", experience: null, salary_text: null, posted_age_days: 3, job_url: "https://in.indeed.com/viewjob?jk=a81d4a731d6e6c7e" },
+    { title: "Full Stack Developer", company: "World Wide Technology Holding, LLC", location: "Mumbai, Maharashtra", experience: null, salary_text: null, posted_age_days: 0, job_url: "https://in.indeed.com/viewjob?jk=08ad2a82f0510de5" },
+    { title: "Full Stack Developer", company: "JETWAY OIL AND FUEL SERVICES HOME PRIVATE LIMITED", location: "Kharghar, Navi Mumbai, Maharashtra", experience: null, salary_text: "₹30,000 - ₹45,000 a month", posted_age_days: 0, job_url: "https://in.indeed.com/viewjob?jk=98b14954acbf94ce" },
+    { title: "Sr. MERN Stack Developer", company: "SheenAI", location: "Kalbadevi, Mumbai, Maharashtra", experience: null, salary_text: "From ₹4,00,000 a year", posted_age_days: 0, job_url: "https://in.indeed.com/viewjob?jk=206afe3e090872df" },
+    { title: "Flutter Mobile Application Developer (back-end)", company: "Homes & Buildings Magazine", location: "Sion, Mumbai, Maharashtra", experience: null, salary_text: "₹50,000 - ₹75,000 a month", posted_age_days: 6, job_url: "https://in.indeed.com/viewjob?jk=5a8b6fdd68866549" },
+    { title: "Senior Backend Developer (Node.js) - Bangalore / Hyderabad / Mumbai", company: "Compest Solutions Inc", location: "Mumbai, Maharashtra", experience: null, salary_text: "₹8,00,000 - ₹10,00,000 a year", posted_age_days: 1, job_url: "https://in.indeed.com/viewjob?jk=9cca4d24695d1f67" },
+    { title: "NodeJs Backend Developer", company: "Choira Musictech", location: "Powai, Mumbai, Maharashtra", experience: null, salary_text: "₹15,000 - ₹20,000 a month", posted_age_days: 6, job_url: "https://in.indeed.com/viewjob?jk=34d78e04a463c3a2" },
+    { title: "Software Developer – Fintech", company: "Arth Vritt Capital Services", location: "Sanpada, Navi Mumbai, Maharashtra", experience: null, salary_text: "₹25,000 - ₹30,000 a month", posted_age_days: 6, job_url: "https://in.indeed.com/viewjob?jk=116057d28b568e5d" },
+    { title: "Full Stack Shopify Developer", company: "WMI Innovative Solutions Pvt Ltd", location: "Vashi, Navi Mumbai, Maharashtra", experience: null, salary_text: "₹5,00,000 - ₹6,00,000 a year", posted_age_days: 1, job_url: "https://in.indeed.com/viewjob?jk=a9b4b30c6a8af43d" },
+    { title: "Senior Product Engineer - BI Platform", company: "Mahindra & Mahindra Ltd", location: "Mumbai, Maharashtra", experience: null, salary_text: null, posted_age_days: 2, job_url: "https://in.indeed.com/viewjob?jk=ddcf4239080a076c" },
+    { title: "Senior Software Engineer", company: "Kitchen Spurs Private Limited", location: "Marol, Mumbai, Maharashtra", experience: null, salary_text: "Up to ₹12,00,000 a year", posted_age_days: 3, job_url: "https://in.indeed.com/viewjob?jk=4515aeb124a64155" },
+    { title: "Full Stack Architect & Backend Engineer - Technical Lead - OTT Platform Development", company: "Meclusions", location: "Mumbai, Maharashtra", experience: null, salary_text: "₹15,000 - ₹50,000 a month", posted_age_days: 4, job_url: "https://in.indeed.com/viewjob?jk=cbd3a5e266904cc4" },
+    { title: "Shopify Developer", company: "Asmita India Limited", location: "Mira Road, Thane, Maharashtra", experience: null, salary_text: "₹40,000 - ₹50,000 a month", posted_age_days: 0, job_url: "https://in.indeed.com/viewjob?jk=c24eab23ae04c745" },
+    ],
+  },
+  naukri: {
+    file: "naukri_1.eml",
+    sender: "naukrialerts@naukri.com",
+    portal: "naukri",
+    receivedAt: "2026-09-21T01:13:00.000Z",
+    jobs: [
+    { title: "Software Developer - Node.js", company: "Bitontree", location: "Ahmedabad", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-software-developer-node-js-bitontree-ahmedabad-3-to-8-years-170926501278" },
+    { title: "Node Js Developer", company: "Techmave Software", location: "Noida, sector 63", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-node-js-developer-techmave-software-noida-sector-63-2-to-5-years-170926923477" },
+    { title: "Node.js Developer", company: "Codebuddy", location: "Kolkata", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-node-js-developer-codebuddy-pvt-ltd-kolkata-3-to-5-years-180926505175" },
+    { title: "Full Stack Developer", company: "Xpertdox", location: "Noida(Sector 142)", experience: null, salary_text: "15-25 Lacs PA", posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-full-stack-developer-xpertdox-noida-2-to-5-years-021224014989" },
+    { title: "Backend Developer Node JS", company: "Acesoft Labs", location: "Hybrid - Bengaluru", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-backend-developer-node-js-acesoft-labs-bengaluru-3-to-6-years-180926918694" },
+    { title: "Node Developer", company: "Razorthink", location: "Hyderabad, Delhi / NCR, Bengaluru", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-node-developer-razorthink-hyderabad-delhi-ncr-bengaluru-2-to-5-years-180926915730" },
+    { title: "Back End Developer", company: "Swazei Tech", location: "Remote", experience: null, salary_text: "6-12 Lacs PA", posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-back-end-developer-swazei-tech-delhi-ncr-5-to-10-years-260226015909" },
+    { title: "Backend Developer - Node.js, Heroku, PostgreSQL", company: "Bahwan CyberTek", location: "Hybrid - Chennai", experience: null, salary_text: null, posted_age_days: null, job_url: "https://www.naukri.com/jd/job-listings-backend-developer-node-js-heroku-postgresql-bahwan-cybertek-chennai-4-to-8-years-180926021604" },
+    ],
+  },
+  shine: {
+    file: "shine_1.eml",
+    sender: "jobs@jobsalert.shine.com",
+    portal: "shine",
+    receivedAt: "2026-10-18T05:03:25.000Z",
+    jobs: [
+    { title: "Hiring Now Inbound Voice Process Work from office. Fluent English Hindi", company: "QRN Services", location: "Bangalore", experience: "0 to 2 Yrs", salary_text: "Rs 2.0 - 3.0 Lakh/Yr", posted_age_days: null, job_url: null },
+    { title: "VIP International Sales Bilingual Work From Home", company: "Global Services", location: "Guntur, Other Maharashtra, Other", experience: "1 to 6 Yrs", salary_text: "Rs 3.0 - 6 Lakh/Yr", posted_age_days: null, job_url: null },
+    { title: "Works Manager - Automotive Service", company: "Gios India", location: "Chennai", experience: "1 to 6 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "International Voice Process (Canada Night Shift)-Work From Home Option", company: "G-Jobs Hiring For Awesome Physiotherapy & Massage", location: "All India", experience: "1 to 5 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "Work From Home Customer Service Representative - Full time / Part time", company: "G-Jobs Hiring For remotepromsp", location: "All India", experience: "0 to 5 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "AR Caller / Senior AR Caller - Hospital Billing ( Work from office ) (Mumbai)", company: "G-Jobs Hiring For Starworth Global Soluitons", location: "Mumbai City", experience: "1 to 5 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "reputed company Quality Assurance (QA) Specialist Work From Home (Day and", company: "G-Jobs Hiring For remote quest jobs", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "**Experienced Work-from-Home Freight Processor - Data Entry Professional for", company: "G-Jobs Hiring For remotepromsp", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "reputed company Quality Assurance (QA) Specialist Work From Home (Day and", company: "G-Jobs Hiring For WFHSprint", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "Part time work, Data Entry , Backend office executive work - Ahmedabad", company: "G-Jobs Hiring For Confidential", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "Technical Support Engineer (Work from Office)", company: "G-Jobs Hiring For Gephels", location: "Mumbai City", experience: "1 to 5 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "Social media management", company: "G-Jobs Hiring For Elevate future career", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    { title: "Work From Home - Tamil Tele Caller (Work From Home)", company: "G-Jobs Hiring For Infinity Communications", location: "All India", experience: "0 to 4 Yrs", salary_text: null, posted_age_days: null, job_url: null },
+    ],
+  },
+};

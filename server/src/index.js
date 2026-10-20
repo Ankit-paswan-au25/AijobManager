@@ -8,6 +8,11 @@ import { createAuthService } from "./services/authService.js";
 import { createResumeService } from "./services/resumeService.js";
 import { createPortalService } from "./services/portalService.js";
 import { createPortalAdminService } from "./services/portalAdminService.js";
+import { createGmailConnectionRepository } from "./repositories/gmailConnectionRepository.js";
+import { createJobRepository } from "./repositories/jobRepository.js";
+import { createGmailClient } from "./services/gmail/gmailClient.js";
+import { createGmailService } from "./services/gmailService.js";
+import { createTokenCipher } from "./lib/tokenCipher.js";
 import { createApp } from "./app.js";
 
 const config = loadConfig();
@@ -28,7 +33,18 @@ const portalRepository = createPortalRepository(pool);
 const portalService = createPortalService({ portalRepository });
 const portalAdminService = createPortalAdminService({ portalRepository });
 
-const app = createApp({ config, authService, resumeService, portalService, portalAdminService });
+// Gmail is optional: without its env vars the /api/gmail routes answer 503.
+const gmailService = config.gmail
+  ? createGmailService({
+      gmailClient: createGmailClient(config.gmail),
+      connectionRepository: createGmailConnectionRepository(pool),
+      jobRepository: createJobRepository(pool),
+      cipher: createTokenCipher(config.gmail.encryptionKey),
+      jwtSecret: config.JWT_SECRET,
+    })
+  : null;
+
+const app = createApp({ config, authService, resumeService, portalService, portalAdminService, gmailService });
 const server = app.listen(config.PORT, () => {
   console.log(`API listening on http://localhost:${config.PORT}`);
 });
