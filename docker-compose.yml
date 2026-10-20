@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: jobmanager
+      POSTGRES_PASSWORD: jobmanager
+      POSTGRES_DB: jobmanager
+    ports:
+      # 5433 on the host so it doesn't clash with a locally installed PostgreSQL on 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
