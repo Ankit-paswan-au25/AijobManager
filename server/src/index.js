@@ -10,6 +10,10 @@ import { createPortalService } from "./services/portalService.js";
 import { createPortalAdminService } from "./services/portalAdminService.js";
 import { createGmailConnectionRepository } from "./repositories/gmailConnectionRepository.js";
 import { createJobRepository } from "./repositories/jobRepository.js";
+import { createMatchRepository } from "./repositories/matchRepository.js";
+import { createAnthropicProvider } from "./services/ai/index.js";
+import { createMatchService } from "./services/matchService.js";
+import { createJobService } from "./services/jobService.js";
 import { createGmailClient } from "./services/gmail/gmailClient.js";
 import { createGmailService } from "./services/gmailService.js";
 import { createTokenCipher } from "./lib/tokenCipher.js";
@@ -24,9 +28,24 @@ const authService = createAuthService({
   jwtExpiresInDays: config.JWT_EXPIRES_IN_DAYS,
 });
 
+const resumeRepository = createResumeRepository(pool);
+const jobRepository = createJobRepository(pool);
+
+// AI is optional: without ANTHROPIC_API_KEY jobs still get the skill-overlap score, flagged llm_failed.
+const aiProvider = config.anthropic ? createAnthropicProvider(config.anthropic) : null;
+const matchService = createMatchService({
+  aiProvider,
+  matchRepository: createMatchRepository(pool),
+  jobRepository,
+  resumeRepository,
+});
+const jobService = createJobService({ jobRepository });
+
 const resumeService = createResumeService({
-  resumeRepository: createResumeRepository(pool),
+  resumeRepository,
   fileStore: createLocalFileStore(config.UPLOAD_DIR),
+  // Resume changed -> rescore all of this user's jobs (in the background, not on a timer).
+  onResumeSaved: (userId) => matchService.rescoreAllForUser(userId),
 });
 
 const portalRepository = createPortalRepository(pool);
@@ -38,13 +57,17 @@ const gmailService = config.gmail
   ? createGmailService({
       gmailClient: createGmailClient(config.gmail),
       connectionRepository: createGmailConnectionRepository(pool),
-      jobRepository: createJobRepository(pool),
+      jobRepository,
       cipher: createTokenCipher(config.gmail.encryptionKey),
       jwtSecret: config.JWT_SECRET,
+      // Jobs added by a sync get scored in the background.
+      onJobsSaved: (userId) => matchService.scoreUnscoredForUser(userId),
     })
   : null;
 
-const app = createApp({ config, authService, resumeService, portalService, portalAdminService, gmailService });
+const app = createApp({
+  config, authService, resumeService, portalService, portalAdminService, gmailService, jobService, matchService,
+});
 const server = app.listen(config.PORT, () => {
   console.log(`API listening on http://localhost:${config.PORT}`);
 });

@@ -75,12 +75,40 @@ export function createInMemoryConnectionRepository() {
 }
 
 /** Mirrors the SQL rules: dedupe by job_url, else by (source_portal, title, company, location); one user_jobs row per user+job. */
-export function createInMemoryJobRepository() {
+export function createInMemoryJobRepository({ matchRepository = null } = {}) {
   const jobs = [];
   const userJobs = [];
+  const matchOf = (userId, jobId) => matchRepository?.find(userId, jobId) ?? null;
   return {
     jobs,
     userJobs,
+
+    async listForUser(userId, { status } = {}) {
+      return userJobs
+        .filter((u) => u.user_id === userId && (!status || u.status === status))
+        .map((u) => {
+          const j = jobs.find((x) => x.id === u.job_id);
+          return {
+            id: j.id, sourcePortal: j.source_portal, title: j.title, company: j.company, location: j.location,
+            jobUrl: j.job_url, needsLink: j.needs_link, postedAgeDays: j.posted_age_days, salaryText: j.salary_text,
+            experienceText: j.experience_text, receivedAt: j.received_at, status: u.status,
+            match: matchOf(userId, j.id),
+          };
+        });
+    },
+    async listForScoring(userId, { onlyUnscored = false } = {}) {
+      return userJobs
+        .filter((u) => u.user_id === userId)
+        .map((u) => jobs.find((j) => j.id === u.job_id))
+        .filter((j) => !onlyUnscored || !matchOf(userId, j.id))
+        .map((j) => ({ id: j.id, title: j.title, company: j.company, raw_snippet: j.raw_snippet }));
+    },
+    async findForScoring(userId, jobId) {
+      const link = userJobs.find((u) => u.user_id === userId && u.job_id === jobId);
+      const j = link && jobs.find((x) => x.id === jobId);
+      return j ? { id: j.id, title: j.title, company: j.company, raw_snippet: j.raw_snippet } : null;
+    },
+
     async saveForUser(userId, parsedJobs) {
       let jobsInserted = 0;
       let userJobsCreated = 0;

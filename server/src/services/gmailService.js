@@ -15,7 +15,7 @@ export function buildSearchQuery(senders = enabledSenders(), windowDays = SYNC_W
 
 export function createGmailService({
   gmailClient, connectionRepository, jobRepository, cipher, jwtSecret,
-  logger = console, now = () => new Date(),
+  logger = console, now = () => new Date(), onJobsSaved = null,
 }) {
   const syncing = new Set(); // user ids with a sync in flight
 
@@ -152,6 +152,13 @@ export function createGmailService({
           const saved = await jobRepository.saveForUser(userId, jobs);
           summary.jobsInserted = saved.jobsInserted;
           summary.userJobsCreated = saved.userJobsCreated;
+          // New jobs are scored in the background (e.g. by matchService). The sync response doesn't wait for it,
+          // and a failure there never fails the sync.
+          if (onJobsSaved && saved.userJobsCreated > 0) {
+            Promise.resolve()
+              .then(() => onJobsSaved(userId))
+              .catch((err) => logger.error(`[alerts] scoring after sync failed: ${err?.name ?? "Error"}`));
+          }
         }
         return summary;
       } finally {

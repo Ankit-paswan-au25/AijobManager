@@ -54,5 +54,72 @@ export function createJobRepository(pool) {
         client.release();
       }
     },
+
+    /** All of a user's jobs with their status and (if scored) their match. Filtering by score/sorting is done by the service. */
+    async listForUser(userId, { status } = {}) {
+      const { rows } = await pool.query(
+        `SELECT j.id, j.source_portal, j.title, j.company, j.location, j.job_url, j.needs_link,
+                j.posted_age_days, j.salary_text, j.experience_text, j.received_at,
+                uj.status, uj.created_at AS saved_at,
+                m.score, m.matched_skills, m.missing_skills, m.reasoning, m.llm_failed, m.scored_at
+           FROM user_jobs uj
+           JOIN jobs j ON j.id = uj.job_id
+           LEFT JOIN match_scores m ON m.job_id = j.id AND m.user_id = uj.user_id
+          WHERE uj.user_id = $1 AND ($2::user_job_status IS NULL OR uj.status = $2::user_job_status)`,
+        [userId, status ?? null],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        sourcePortal: r.source_portal,
+        title: r.title,
+        company: r.company,
+        location: r.location,
+        jobUrl: r.job_url,
+        needsLink: r.needs_link,
+        postedAgeDays: r.posted_age_days,
+        salaryText: r.salary_text,
+        experienceText: r.experience_text,
+        receivedAt: r.received_at,
+        status: r.status,
+        match:
+          r.score === null
+            ? null
+            : {
+                score: r.score,
+                matchedSkills: r.matched_skills,
+                missingSkills: r.missing_skills,
+                reasoning: r.reasoning,
+                llmFailed: r.llm_failed,
+                scoredAt: r.scored_at,
+              },
+      }));
+    },
+
+    /** The fields scoring needs for jobs this user has. `onlyUnscored` skips jobs that already have a match row. */
+    async listForScoring(userId, { onlyUnscored = false } = {}) {
+      const { rows } = await pool.query(
+        `SELECT j.id, j.title, j.company, j.raw_snippet
+           FROM user_jobs uj
+           JOIN jobs j ON j.id = uj.job_id
+          WHERE uj.user_id = $1
+            AND ($2::boolean = false
+                 OR NOT EXISTS (SELECT 1 FROM match_scores m WHERE m.user_id = uj.user_id AND m.job_id = j.id))
+          ORDER BY j.received_at DESC, j.id`,
+        [userId, onlyUnscored],
+      );
+      return rows;
+    },
+
+    /** One of the user's jobs for scoring, or null if it doesn't exist or isn't theirs. */
+    async findForScoring(userId, jobId) {
+      const { rows } = await pool.query(
+        `SELECT j.id, j.title, j.company, j.raw_snippet
+           FROM user_jobs uj
+           JOIN jobs j ON j.id = uj.job_id
+          WHERE uj.user_id = $1 AND j.id = $2`,
+        [userId, jobId],
+      );
+      return rows[0] ?? null;
+    },
   };
 }

@@ -285,6 +285,25 @@ describe("sync", () => {
     expect(ctx.connectionRepository.rows.size).toBe(1);
   });
 
+  it("starts scoring for new jobs without waiting for it, and a failing scorer never fails the sync", async () => {
+    const onJobsSaved = vi.fn(() => Promise.reject(new Error("SECRET-DETAIL")));
+    const scored = setup({ mailbox: sampleMailbox() });
+    const service = createGmailService({
+      gmailClient: scored.gmailClient, connectionRepository: scored.connectionRepository, jobRepository: scored.jobRepository,
+      cipher: scored.cipher, jwtSecret: JWT_SECRET, logger: scored.logger, now: () => NOW, onJobsSaved,
+    });
+    await connect({ service }, "user-1");
+    await expect(service.sync("user-1")).resolves.toMatchObject({ userJobsCreated: TOTAL_JOBS });
+    await new Promise((r) => setImmediate(r));
+    expect(onJobsSaved).toHaveBeenCalledTimes(1);
+    expect(onJobsSaved).toHaveBeenCalledWith("user-1");
+    expect(JSON.stringify(scored.logger.error.mock.calls)).not.toContain("SECRET-DETAIL");
+
+    await service.sync("user-1"); // nothing new -> nothing to score
+    await new Promise((r) => setImmediate(r));
+    expect(onJobsSaved).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses a second concurrent sync for the same user", async () => {
     const first = ctx.service.sync("user-1");
     await expect(ctx.service.sync("user-1")).rejects.toMatchObject({ status: 409, code: "SYNC_IN_PROGRESS" });

@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { parseEncryptionKey } from "../lib/tokenCipher.js";
+import { DEFAULT_ANTHROPIC_MODEL } from "./ai.js";
 
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -19,6 +20,9 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
   GMAIL_TOKEN_ENCRYPTION_KEY: z.string().min(1).optional(),
+  // AI scoring is optional. Without a key, jobs still get the deterministic score and are flagged llm_failed.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).optional(), // default lives in config/ai.js
 });
 
 const GMAIL_KEYS = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GMAIL_TOKEN_ENCRYPTION_KEY"];
@@ -52,9 +56,14 @@ export function loadConfig(source = process.env) {
     }
   }
 
+  const anthropic = config.ANTHROPIC_API_KEY
+    ? { apiKey: config.ANTHROPIC_API_KEY, model: config.ANTHROPIC_MODEL ?? DEFAULT_ANTHROPIC_MODEL }
+    : null;
+
   const {
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GMAIL_TOKEN_ENCRYPTION_KEY, // eslint-disable-line no-unused-vars
+    ANTHROPIC_API_KEY, ANTHROPIC_MODEL, // eslint-disable-line no-unused-vars
     ...rest
   } = config;
-  return { ...rest, UPLOAD_DIR: path.resolve(SERVER_ROOT, config.UPLOAD_DIR), gmail };
+  return { ...rest, UPLOAD_DIR: path.resolve(SERVER_ROOT, config.UPLOAD_DIR), gmail, anthropic };
 }

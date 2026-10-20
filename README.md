@@ -44,6 +44,9 @@ Edit `server/.env`:
 | `UPLOAD_DIR` | Where uploaded resumes are stored, default `server/uploads` (git-ignored). Never served over HTTP. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` | Optional. All four or none. See "Gmail setup" below. Without them `/api/gmail/*` answers 503 and the rest of the app works normally. |
 
+| `ANTHROPIC_API_KEY` | Optional. Enables AI scoring of jobs. Without it every job still gets its skill-overlap score, flagged `llmFailed`. |
+| `ANTHROPIC_MODEL` | Optional. Overrides the default model set in `server/src/config/ai.js`. |
+
 For the local Docker database, `DATABASE_URL` is `postgres://jobmanager:jobmanager@localhost:5433/jobmanager`.
 
 `.env` is git-ignored. Never commit real secrets.
@@ -172,9 +175,32 @@ TODO: Naukri's "jobs applied by your peers" email is a known non-job email; its 
 
 Passwords: 10–72 bytes, hashed with bcrypt. Sessions: JWT in an httpOnly, SameSite=Lax cookie (Secure in production).
 
+### Job matching (require login and a resume)
+
+Each job is scored 0–100 against the user's resume. **There is no auto-apply**: the app never applies for you.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/jobs?status=&min_score=&sort=` | 200 `{ jobs, total, unscored, hiddenBelowMinScore }`. `status` is `new\|saved\|applied\|interview\|rejected\|archived`, `min_score` is 0–100 (**default 80**, so below-threshold jobs are hidden until the user lowers it), `sort` is `score` (default) or `received_at`, both newest/best first. Blank values count as not provided. |
+| POST | `/api/jobs/:id/rescore` | 200 `{ jobId, match }`. 404 if the job isn't yours. |
+
+Labels: 90–100 "Top match", 80–89 "Strong match: review skill gaps", below 80 "Below threshold".
+
+How a score is made (`server/src/services/matchService.js`):
+
+1. **Deterministic.** Skills are found with the dictionary in `server/src/config/skills.js` in the resume's skills list (or, for uploaded resumes with no list, in the resume text) and in the job title and snippet. `matched_skills` / `missing_skills` are the overlap; the base score is matched ÷ skills named in the job. A job that names no known skill gets 0.
+2. **LLM.** The resume summary and skills, plus the job title, company and snippet, go to the model, which must answer with JSON `{ score, reasoning, skill_gaps }`. The reply is validated with zod; on any failure it is retried once. If it still fails (or no key is configured) the step 1 score is stored with `llm_failed = true`. Contact details and the rest of the resume are never sent.
+3. A snippet under 100 characters adds "Note: this match is based on limited job information." to the reasoning.
+
+Scoring runs in the background, never on a timer: after a Gmail sync adds jobs (only unscored jobs), and after the user's resume is saved (all jobs, using the new resume). `POST /rescore` runs it for one job on demand. Scores are stored in `match_scores`, one row per user and job.
+
+AI code lives in `server/src/services/ai/` (`complete(prompt)` interface + Anthropic provider). Only services use it; route handlers never do (a test enforces this). Tests use a scripted fake provider and never need a key.
+
+TODO: Naukri cards have no skills list, so their base score only sees the job title. Pagination for `GET /api/jobs`. No UI for jobs yet.
+
 ## Not built yet
 
-Job matching, document generation and other AI features; a Gmail/jobs UI; a sync scheduler. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
+Document generation (tailored resume, cover note, prep kit); a Gmail/jobs UI; a sync scheduler. Not in scope yet. Also TODO: telling a user when their portal submission is rejected (and why; the reason is stored, but `GET /api/portals` only returns approved and pending as specified), notifications for admins, an admin audit trail, OCR for scanned resumes, parsing uploaded resumes into structured data, and zip-bomb protection for DOCX uploads. Email verification, password reset and CSRF tokens are also TODO.
 
 ## Project rules
 

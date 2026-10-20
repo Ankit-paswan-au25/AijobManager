@@ -13,9 +13,20 @@ const toPublicResume = (r) => ({
   updatedAt: r.updatedAt,
 });
 
-export function createResumeService({ resumeRepository, fileStore }) {
+/**
+ * `onResumeSaved(userId)` runs after every successful upload/create (the resume "update path"), e.g. to rescore jobs.
+ * It is not awaited: the response must not wait on slow work, and a failure there must never fail the save.
+ */
+export function createResumeService({ resumeRepository, fileStore, onResumeSaved = null, logger = console }) {
   // Best-effort cleanup; a leftover file must never fail the request.
   const removeQuietly = (path) => fileStore.remove(path).catch(() => {});
+
+  const notifySaved = (userId) => {
+    if (!onResumeSaved) return;
+    Promise.resolve()
+      .then(() => onResumeSaved(userId))
+      .catch((err) => logger.error(`[resume] follow-up after save failed: ${err?.name ?? "Error"}`));
+  };
 
   return {
     async getCurrent(userId) {
@@ -49,6 +60,7 @@ export function createResumeService({ resumeRepository, fileStore }) {
           structuredData: null, // TODO(later phase): derive structured data from uploaded text.
         });
         if (previousFilePath && previousFilePath !== filePath) await removeQuietly(previousFilePath);
+        notifySaved(userId);
         return toPublicResume(resume);
       } catch (err) {
         await removeQuietly(filePath);
@@ -65,6 +77,7 @@ export function createResumeService({ resumeRepository, fileStore }) {
         structuredData: data,
       });
       if (previousFilePath) await removeQuietly(previousFilePath);
+      notifySaved(userId);
       return toPublicResume(resume);
     },
   };
