@@ -7,6 +7,8 @@ export default function AuthForm({ title, submitLabel, showName = false, onSubmi
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -15,7 +17,7 @@ export default function AuthForm({ title, submitLabel, showName = false, onSubmi
     setError("");
     setSubmitting(true);
     try {
-      await onSubmit({ fullName, email, password });
+      await onSubmit({ fullName, email, password, country, city });
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -63,6 +65,31 @@ export default function AuthForm({ title, submitLabel, showName = false, onSubmi
           />
           {showName && <span className="text-xs text-slate-500">At least 10 characters.</span>}
         </label>
+        {showName && (
+          <fieldset className="space-y-4">
+            <legend className="text-xs text-slate-500">Optional: where are you based? Only admins can see this.</legend>
+            <label className="block text-sm">
+              Country <span className="text-slate-400">(optional)</span>
+              <input
+                maxLength={100}
+                autoComplete="country-name"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="block text-sm">
+              City <span className="text-slate-400">(optional)</span>
+              <input
+                maxLength={100}
+                autoComplete="address-level2"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+          </fieldset>
+        )}
         {error && (
           <p role="alert" className="text-sm text-red-600">
             {error}

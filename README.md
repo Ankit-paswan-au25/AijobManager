@@ -81,7 +81,7 @@ All errors have the shape `{ "error": { "code": "...", "message": "..." } }`.
 
 | Method | Path | Body | Result |
 | --- | --- | --- | --- |
-| POST | `/api/auth/signup` | `{ fullName, email, password }` | 201 `{ user }` + session cookie |
+| POST | `/api/auth/signup` | `{ fullName, email, password, country?, city? }` | 201 `{ user }` + session cookie. `country` and `city` are optional free text (max 100 characters, blank = not given) and only admins can see them |
 | POST | `/api/auth/login` | `{ email, password }` | 200 `{ user }` + session cookie |
 | POST | `/api/auth/logout` | — | 204, cookie cleared |
 | GET | `/api/auth/me` | — | 200 `{ user }`, or 401 without a valid session |
@@ -130,6 +130,33 @@ npm run make-admin -- someone@example.com --revoke
 | POST | `/api/admin/portals/:id/reject` | `{ reason }` (required) | 200 `{ portal }`, or 409 `NOT_PENDING` |
 
 Non-admins get `403 FORBIDDEN`. The admin page is at `/admin` (a link shows in the header for admins).
+
+### Admin: users, reviews and the audit log
+
+More routes under `/api/admin`, in `server/src/routes/adminConsole.js`. The portal review routes above are unchanged. Every route needs an admin: signed-out visitors get 401 and signed-in non-admins get 403 (a test lists every admin route and checks both, and fails if a route is added without being listed).
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/admin/users?page=&page_size=` | 200 `{ users, page, pageSize, total }`, newest signups first. Each user: `id, fullName, email, createdAt, country, city, resumeStatus` (`none`/`created`/`uploaded`), `resumeUrl` (null if no resume). Never includes resume text or password hashes |
+| GET | `/api/admin/users/:id/resume` | 200 `{ user, resume: { id, source, text, updatedAt } }`. **Writes an audit row first**; if that fails no text is returned. 404 if no such user or no resume (nothing logged). The stored file and its path are never returned |
+| GET | `/api/admin/reviews?status=&page=&page_size=` | 200 `{ reviews, page, pageSize, total }`, every status, with the author |
+| PATCH | `/api/admin/reviews/:id` body `{ status: "visible"\|"hidden"\|"flagged" }` | 200 `{ review }`. `hidden` = hide, `visible` = unhide, `flagged` = flag. Setting the status it already has changes and logs nothing |
+| GET | `/api/admin/audit-log?page=&page_size=` | 200 `{ actions, page, pageSize, total }`, newest first, each with `adminEmail`, `action`, `targetType`, `targetId`, `targetLabel` |
+
+`page` starts at 1; `page_size` is 1–100 (default 20).
+
+**Audit log** (`admin_actions`: `id, admin_id, action, target_type, target_id, created_at`). Actions: `approve_portal`, `reject_portal`, `hide_review`, `unhide_review`, `flag_review`, `view_resume` (a CHECK in the database allows only these). Targets are a portal, a review or a resume. It is append-only: nothing in the app edits or deletes rows, and rows survive an admin account being deleted (`admin_id` becomes null). How each action is logged:
+- **hide / unhide / flag**: the status change and its audit row are one transaction, so neither exists without the other.
+- **view resume**: the audit row is written before the text is returned.
+- **approve / reject**: the portal admin code was left as it was and is wrapped in `createAuditedPortalAdminService` when the app is built (`createApp({ auditRepository })`). The row is written just after the portal change is saved, so if that write fails the approve/reject still succeeds and the failure is logged on the server. TODO: write it inside the portal review's own transaction.
+
+**Reviews** (`reviews`: `id, user_id, portal_id, body, status, created_at`). Any signed-in user with a resume can post: `POST /api/reviews` `{ body (1–1000 characters), portal_id? }` (no `portal_id` = about the app; only approved portals can be reviewed, otherwise 400 `INVALID_PORTAL`). `GET /api/reviews?portal_id=` or `?about=app` lists only `visible` reviews; hidden **and flagged** reviews are not shown, and no author details are returned. TODO: a limit on how many reviews one user can post.
+
+Origin: signup takes optional `country` and `city` (columns on `users`). They only appear in the admin user list.
+
+UI: admins get Users (`/admin/users`), Moderate (`/admin/reviews`) and Audit log (`/admin/audit-log`) in the header. A resume opens only when the admin clicks "Open resume" (so a page reload never logs a view). Users get a Reviews page at `/reviews`. These pages are only a convenience; the server enforces admin access.
+
+TODO: search and filters on the user list, names for review targets that were deleted, exporting the audit log.
 
 ### Gmail job alerts (require login and a resume)
 
@@ -218,6 +245,32 @@ A document is `{ id, jobId, type, content, limitedInfo, limitedInfoNote, modelUs
 Limits: the validator checks names, titles, dates and skills from the dictionary, but **not invented numbers or achievements** (TODO). The cover note and prep kit are constrained by the prompt only, plus the length, placeholder and URL checks.
 
 UI: `/jobs` lists jobs and `/jobs/:id` has the tabs Match, Tailored Resume, Cover Note and Prep Kit, with Regenerate and Copy on each document and an "Open job posting" link. The page states that the user applies on the portal themselves.
+
+### Dashboard and status tracking (require login and a resume)
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/dashboard` | 200 `{ topMatches, strongMatches, applied, interviews, pendingPortals, otherOpenJobs }`. Read-only. |
+| PATCH | `/api/user-jobs/:id` body `{ status?, interview_date?, interview_notes? }` (at least one) | 200 `{ userJob }`. 404 if the row isn't yours. |
+| GET | `/api/user-jobs/:id/history` | 200 `{ history: [{ id, fromStatus, toStatus, changedAt }] }`, newest first. |
+
+`:id` is the `user_jobs` id, the `userJobId` field on every job (the job page itself still uses the shared job `id`). `status` is `new|saved|applied|interview|rejected|archived`; a user may move a job to any of them. Setting the status it already has changes nothing and writes no history row. `interview_date` is an ISO 8601 date-time with `Z` or an offset (the UI sends the user's local time as UTC); `null` clears it. `interview_notes` is up to 2000 characters; `null` or blank clears it. A change of status and its `status_history` row are written in one transaction (the row is locked first, so `from_status` is always right).
+
+**Nothing changes a status automatically.** Not a sync, scoring, a resume update, viewing the dashboard, or entering an interview date. Interview dates are entered by the user only. The app doesn't read Gmail for interview invitations: sync still reads only the senders in `server/src/config/alertSenders.js`, and the status/dashboard code never calls Gmail (a test checks that).
+
+Sections (a job is in at most one; checked in this order):
+1. rejected or archived: none (they stay on the All jobs page);
+2. **Interviews**: status `interview`, or an interview date entered. A date alone is enough to list the job here but leaves its status as it is (the card shows the real status). Upcoming dates first, then jobs with no date, then past ones;
+3. **Applied**: status `applied`;
+4. **Top matches** (score 90+) and **Strong matches** (80–89): jobs still `new` or `saved`.
+
+Open jobs below 80 or not scored yet are in no section; `otherOpenJobs` counts them. **Pending portal review** lists only the portals the caller submitted that are still pending (never another user's, not even for admins; admins still have `/api/admin/portals/pending`) and only the same fields `GET /api/portals` already shows the submitter.
+
+Cards show title, company, portal, score label, status, posted age and received date. The alert gives the posted age as of the day it arrived, so the UI shows "Posted ~N days ago" with the days since then added, or nothing if the alert didn't say. The job page (`/jobs/:id`) has the status control, interview date and notes, and the status history. The dashboard is the home page (`/`).
+
+Migration `status-tracking` adds `user_jobs.id` (primary key; existing rows get their own ids), `interview_date`, `interview_notes`, and the `status_history` table (`id, user_job_id, from_status, to_status, changed_at`; deleted with its job link).
+
+TODO: pagination for the dashboard and job list, a status filter on the jobs page, a history entry for interview-date edits.
 
 ## Not built yet
 

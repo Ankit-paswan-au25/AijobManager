@@ -89,7 +89,8 @@ export function createInMemoryJobRepository({ matchRepository = null } = {}) {
         .map((u) => {
           const j = jobs.find((x) => x.id === u.job_id);
           return {
-            id: j.id, sourcePortal: j.source_portal, title: j.title, company: j.company, location: j.location,
+            id: j.id, userJobId: u.id, interviewDate: u.interview_date, interviewNotes: u.interview_notes,
+            sourcePortal: j.source_portal, title: j.title, company: j.company, location: j.location,
             jobUrl: j.job_url, needsLink: j.needs_link, postedAgeDays: j.posted_age_days, salaryText: j.salary_text,
             experienceText: j.experience_text, receivedAt: j.received_at, status: u.status,
             match: matchOf(userId, j.id),
@@ -129,7 +130,9 @@ export function createInMemoryJobRepository({ matchRepository = null } = {}) {
           jobsInserted += 1;
         }
         if (!userJobs.some((u) => u.user_id === userId && u.job_id === job.id)) {
-          userJobs.push({ user_id: userId, job_id: job.id, status: "new" });
+          userJobs.push({
+            id: randomUUID(), user_id: userId, job_id: job.id, status: "new", interview_date: null, interview_notes: null,
+          });
           userJobsCreated += 1;
         }
       }

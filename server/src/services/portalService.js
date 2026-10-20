@@ -21,6 +21,11 @@ export function createPortalService({ portalRepository }) {
     /** Approved portals plus the caller's own pending submissions. */
     listFor,
 
+    /** The caller's own submissions that are still pending review (used by the dashboard). */
+    async listPendingFor(userId) {
+      return (await portalRepository.listPendingBySubmitter(userId)).map((p) => toUserPortal({ ...p, selected: false }));
+    },
+
     async submit({ userId, name, baseUrl }) {
       const normalized = normalizePortalUrl(baseUrl);
       if (!normalized) {

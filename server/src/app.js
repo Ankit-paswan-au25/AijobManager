@@ -8,6 +8,11 @@ import { createUsersRouter } from "./routes/users.js";
 import { createAdminRouter } from "./routes/admin.js";
 import { createGmailRouter } from "./routes/gmail.js";
 import { createJobsRouter } from "./routes/jobs.js";
+import { createUserJobsRouter } from "./routes/userJobs.js";
+import { createDashboardRouter } from "./routes/dashboard.js";
+import { createReviewsRouter } from "./routes/reviews.js";
+import { createAdminConsoleRouter } from "./routes/adminConsole.js";
+import { createAuditedPortalAdminService } from "./services/auditedPortalAdminService.js";
 import { createRequireAuth } from "./middleware/requireAuth.js";
 import { createRequireResume } from "./middleware/requireResume.js";
 import { requireAdmin } from "./middleware/requireAdmin.js";
@@ -20,7 +25,9 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
  */
 export function createApp({
   config, authService, resumeService, portalService, portalAdminService, gmailService = null,
-  jobService = null, matchService = null, documentService = null,
+  jobService = null, matchService = null, documentService = null, userJobService = null, dashboardService = null,
+  // Admin area. Without auditRepository, portal approve/reject are not logged (only the tests that predate it omit it).
+  auditRepository = null, auditService = null, adminUserService = null, adminReviewService = null, reviewService = null,
 }) {
   const app = express();
   app.disable("x-powered-by");
@@ -37,13 +44,24 @@ export function createApp({
   app.use("/api/portals", createPortalsRouter({ portalService, requireAuth, requireResume }));
   app.use("/api/users", createUsersRouter({ portalService, requireAuth, requireResume }));
   // Admin routes don't need a resume: reviewing portals isn't part of the job-seeker flow.
-  app.use("/api/admin", createAdminRouter({ portalAdminService, requireAuth, requireAdmin }));
+  // The portal review routes and service are unchanged; the wrapper only adds the audit-log write after approve/reject.
+  const auditedPortalAdminService = auditRepository
+    ? createAuditedPortalAdminService({ portalAdminService, auditRepository })
+    : portalAdminService;
+  app.use("/api/admin", createAdminRouter({ portalAdminService: auditedPortalAdminService, requireAuth, requireAdmin }));
+  if (adminUserService && adminReviewService && auditService) {
+    app.use("/api/admin", createAdminConsoleRouter({ adminUserService, adminReviewService, auditService, requireAuth, requireAdmin }));
+  }
+  if (reviewService) app.use("/api/reviews", createReviewsRouter({ reviewService, requireAuth, requireResume }));
 
   app.use("/api/gmail", createGmailRouter({ gmailService, requireAuth, requireResume, config }));
 
   if (jobService && matchService) {
     app.use("/api/jobs", createJobsRouter({ jobService, matchService, documentService, requireAuth, requireResume }));
   }
+
+  if (userJobService) app.use("/api/user-jobs", createUserJobsRouter({ userJobService, requireAuth, requireResume }));
+  if (dashboardService) app.use("/api/dashboard", createDashboardRouter({ dashboardService, requireAuth, requireResume }));
 
   // TODO(later phases): mount further routers here, behind requireResume.
 

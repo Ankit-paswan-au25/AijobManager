@@ -1,5 +1,5 @@
 const PG_UNIQUE_VIOLATION = "23505";
-const COLUMNS = "id, email, password_hash, full_name, is_admin, created_at";
+const COLUMNS = "id, email, password_hash, full_name, is_admin, created_at, country, city";
 
 const toUser = (row) =>
   row && {
@@ -9,6 +9,8 @@ const toUser = (row) =>
     fullName: row.full_name,
     isAdmin: row.is_admin,
     createdAt: row.created_at,
+    country: row.country,
+    city: row.city,
   };
 
 export function createUserRepository(pool) {
@@ -24,12 +26,12 @@ export function createUserRepository(pool) {
     },
 
     /** Returns the new user, or null if the email is already taken. */
-    async create({ email, passwordHash, fullName }) {
+    async create({ email, passwordHash, fullName, country = null, city = null }) {
       try {
         const { rows } = await pool.query(
-          `INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3)
+          `INSERT INTO users (email, password_hash, full_name, country, city) VALUES ($1, $2, $3, $4, $5)
            RETURNING ${COLUMNS}`,
-          [email, passwordHash, fullName],
+          [email, passwordHash, fullName, country, city],
         );
         return toUser(rows[0]);
       } catch (err) {

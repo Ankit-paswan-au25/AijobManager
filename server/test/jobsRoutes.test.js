@@ -132,6 +132,7 @@ describe("GET /api/jobs", () => {
       id: expect.any(String), sourcePortal: "naukri", title: "Job 2", company: "Company 2", location: "Pune",
       jobUrl: "https://www.naukri.com/jd/job-listings-job-2", needsLink: false, postedAgeDays: null, salaryText: null,
       experienceText: null, receivedAt: expect.any(String), status: "new",
+      userJobId: expect.any(String), interviewDate: null, interviewNotes: null,
       match: {
         score: 95, label: "Top match", matchedSkills: ["Node.js"], missingSkills: ["Kafka"], reasoning: "r",
         llmFailed: false, scoredAt: expect.any(String),

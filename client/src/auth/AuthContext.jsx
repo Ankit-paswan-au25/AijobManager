@@ -22,8 +22,12 @@ export function AuthProvider({ children }) {
     setUser(data.user);
   }, []);
 
-  const signup = useCallback(async (fullName, email, password) => {
-    const data = await api("/auth/signup", { method: "POST", body: { fullName, email, password } });
+  const signup = useCallback(async (fullName, email, password, country = "", city = "") => {
+    // Country and city are optional; blank values are simply left out.
+    const body = { fullName, email, password };
+    if (country.trim()) body.country = country.trim();
+    if (city.trim()) body.city = city.trim();
+    const data = await api("/auth/signup", { method: "POST", body });
     setUser(data.user);
   }, []);
 

@@ -26,12 +26,15 @@ export function createInMemoryUserRepository() {
     async findById(id) {
       return users.get(id) ?? null;
     },
-    async create({ email, passwordHash, fullName }) {
+    async create({ email, passwordHash, fullName, country = null, city = null }) {
       if ([...users.values()].some((u) => u.email === email)) return null;
-      const user = { id: randomUUID(), email, passwordHash, fullName, isAdmin: false, createdAt: new Date() };
+      const user = {
+        id: randomUUID(), email, passwordHash, fullName, isAdmin: false, createdAt: new Date(), country, city,
+      };
       users.set(user.id, user);
       return user;
     },
+    _all: () => [...users.values()],
     // test helper: there is deliberately no API for this
     _setAdmin(email, value = true) {
       const user = [...users.values()].find((u) => u.email === email);

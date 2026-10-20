@@ -19,10 +19,14 @@ export default function AppHeader({ withResumeNav = true }) {
       <div className="flex items-center gap-6">
         <Link to="/" className="text-xl font-semibold">AI Job Manager</Link>
         <nav className="flex gap-4">
-          {withResumeNav && <NavLink to="/" end className={linkClass}>Home</NavLink>}
+          {withResumeNav && <NavLink to="/" end className={linkClass}>Dashboard</NavLink>}
           {withResumeNav && <NavLink to="/jobs" className={linkClass}>Jobs</NavLink>}
           {withResumeNav && <NavLink to="/portals" className={linkClass}>Portals</NavLink>}
-          {user.isAdmin && <NavLink to="/admin" className={linkClass}>Admin</NavLink>}
+          {withResumeNav && <NavLink to="/reviews" className={linkClass}>Reviews</NavLink>}
+          {user.isAdmin && <NavLink to="/admin" end className={linkClass}>Admin</NavLink>}
+          {user.isAdmin && <NavLink to="/admin/users" className={linkClass}>Users</NavLink>}
+          {user.isAdmin && <NavLink to="/admin/reviews" className={linkClass}>Moderate</NavLink>}
+          {user.isAdmin && <NavLink to="/admin/audit-log" className={linkClass}>Audit log</NavLink>}
         </nav>
       </div>
       <button onClick={onLogout} className="rounded border border-slate-300 px-3 py-1 text-sm">

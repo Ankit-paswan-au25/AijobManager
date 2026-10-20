@@ -24,13 +24,15 @@ export function createAuthService({ userRepository, jwtSecret, jwtExpiresInDays,
     });
 
   return {
-    async signup({ email, password, fullName }) {
+    async signup({ email, password, fullName, country = null, city = null }) {
       const normalized = normalizeEmail(email);
       const passwordHash = await bcrypt.hash(password, bcryptCost);
       const user = await userRepository.create({
         email: normalized,
         passwordHash,
         fullName: fullName.trim(),
+        country: country?.trim() || null,
+        city: city?.trim() || null,
       });
       if (!user) throw conflict("EMAIL_TAKEN", "An account with this email already exists");
       return { user: toPublicUser(user), token: signToken(user.id) };

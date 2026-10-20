@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import AppHeader from "../components/AppHeader.jsx";
-import ScoreBadge from "../jobs/ScoreBadge.jsx";
+import JobCard from "../jobs/JobCard.jsx";
 
 /**
- * Minimal jobs list: just enough to reach a job's page.
+ * Every job you have (best first), including rejected and archived ones, so nothing disappears.
  * TODO: status filter, sort control, Gmail connect/sync buttons, pagination.
  */
 export default function Jobs() {
@@ -26,10 +25,13 @@ export default function Jobs() {
     };
   }, [showAll]);
 
+  const onStatusChanged = (jobId) => (userJob) =>
+    setData((d) => ({ ...d, jobs: d.jobs.map((j) => (j.id === jobId ? { ...j, status: userJob.status } : j)) }));
+
   return (
     <main className="mx-auto max-w-3xl p-8">
       <AppHeader />
-      <h1 className="mb-1 text-2xl font-semibold">Your jobs</h1>
+      <h1 className="mb-1 text-2xl font-semibold">All jobs</h1>
       <p className="mb-4 text-sm text-slate-600">
         Best matches first. You apply on each job portal yourself; this app never applies for you.
       </p>
@@ -52,18 +54,7 @@ export default function Jobs() {
           )}
           <ul className="space-y-3">
             {data.jobs.map((job) => (
-              <li key={job.id} className="rounded-lg bg-white p-4 shadow">
-                <Link to={`/jobs/${job.id}`} className="font-medium text-indigo-700 hover:underline">
-                  {job.title}
-                </Link>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  {job.company}
-                  {job.location ? ` · ${job.location}` : ""}
-                </p>
-                <div className="mt-2">
-                  <ScoreBadge match={job.match} />
-                </div>
-              </li>
+              <JobCard key={job.userJobId} job={job} onStatusChanged={onStatusChanged(job.id)} />
             ))}
           </ul>
           {(data.unscored > 0 || (!showAll && data.hiddenBelowMinScore > 0 && data.jobs.length > 0)) && (

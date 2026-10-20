@@ -33,6 +33,17 @@ export function createPortalRepository(pool) {
       return rows.map((r) => ({ ...toPortal(r), selected: r.selected }));
     },
 
+    /** Only the portals this user submitted that are still waiting for an admin. Nobody else's. */
+    async listPendingBySubmitter(userId) {
+      const { rows } = await pool.query(
+        `SELECT ${COLUMNS} FROM portals p
+          WHERE p.status = 'pending' AND p.submitted_by = $1
+          ORDER BY p.submitted_at ASC`,
+        [userId],
+      );
+      return rows.map(toPortal);
+    },
+
     async findById(id) {
       const { rows } = await pool.query(`SELECT ${COLUMNS} FROM portals p WHERE p.id = $1`, [id]);
       return toPortal(rows[0]) ?? null;

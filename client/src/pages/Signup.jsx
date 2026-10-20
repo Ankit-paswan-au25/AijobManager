@@ -12,8 +12,8 @@ export default function Signup() {
       title="Create your account"
       submitLabel="Sign up"
       showName
-      onSubmit={async ({ fullName, email, password }) => {
-        await signup(fullName, email, password);
+      onSubmit={async ({ fullName, email, password, country, city }) => {
+        await signup(fullName, email, password, country, city);
         navigate("/", { replace: true });
       }}
       footer={

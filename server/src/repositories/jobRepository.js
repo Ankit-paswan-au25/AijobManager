@@ -4,7 +4,7 @@
  */
 const LIST_SELECT = `SELECT j.id, j.source_portal, j.title, j.company, j.location, j.job_url, j.needs_link,
                 j.posted_age_days, j.salary_text, j.experience_text, j.received_at, j.raw_snippet,
-                uj.status, uj.created_at AS saved_at,
+                uj.id AS user_job_id, uj.status, uj.interview_date, uj.interview_notes, uj.created_at AS saved_at,
                 m.score, m.matched_skills, m.missing_skills, m.reasoning, m.llm_failed, m.scored_at
            FROM user_jobs uj
            JOIN jobs j ON j.id = uj.job_id
@@ -12,6 +12,7 @@ const LIST_SELECT = `SELECT j.id, j.source_portal, j.title, j.company, j.locatio
 
 const toListItem = (r) => ({
   id: r.id,
+  userJobId: r.user_job_id,
   sourcePortal: r.source_portal,
   title: r.title,
   company: r.company,
@@ -23,6 +24,8 @@ const toListItem = (r) => ({
   experienceText: r.experience_text,
   receivedAt: r.received_at,
   status: r.status,
+  interviewDate: r.interview_date,
+  interviewNotes: r.interview_notes,
   match:
     r.score === null
       ? null

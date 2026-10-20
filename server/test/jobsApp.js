@@ -5,6 +5,8 @@ import { createApp } from "../src/app.js";
 import { createTokenCipher } from "../src/lib/tokenCipher.js";
 import { createGmailService } from "../src/services/gmailService.js";
 import { createJobService } from "../src/services/jobService.js";
+import { createUserJobService } from "../src/services/userJobService.js";
+import { createDashboardService } from "../src/services/dashboardService.js";
 import { createDocumentService } from "../src/services/documentService.js";
 import { createMatchService } from "../src/services/matchService.js";
 import { createPortalAdminService } from "../src/services/portalAdminService.js";
@@ -22,12 +24,13 @@ import {
 import { createInMemoryMatchRepository } from "./matchFakes.js";
 import { createInMemoryDocumentRepository } from "./documentFakes.js";
 import { createInMemoryPortalRepository } from "./portalFakes.js";
+import { createInMemoryUserJobRepository } from "./userJobFakes.js";
 
 const CONFIG = { ...TEST_CONFIG, CLIENT_ORIGIN: "http://localhost:5173" };
 export const day = (n) => new Date(Date.UTC(2026, 9, 20) - n * 86400000);
 const quiet = () => ({ info() {}, warn() {}, error() {} });
 
-export async function buildApp({ provider = null, mailbox = [] } = {}) {
+export async function buildApp({ provider = null, mailbox = [], now } = {}) {
   const userRepository = createInMemoryUserRepository();
   const portalRepository = createInMemoryPortalRepository({ userRepository });
   const resumeRepository = createInMemoryResumeRepository();
@@ -37,6 +40,10 @@ export async function buildApp({ provider = null, mailbox = [] } = {}) {
 
   const matchService = createMatchService({ aiProvider: provider, matchRepository, jobRepository, resumeRepository, logger });
   const jobService = createJobService({ jobRepository });
+  const userJobRepository = createInMemoryUserJobRepository({ jobRepository });
+  const userJobService = createUserJobService({ userJobRepository });
+  const portalService = createPortalService({ portalRepository });
+  const dashboardService = createDashboardService({ jobRepository, portalService, ...(now ? { now } : {}) });
   const documentRepository = createInMemoryDocumentRepository();
   const documentService = createDocumentService({ aiProvider: provider, documentRepository, jobRepository, resumeRepository, logger });
   const resumeService = createResumeService({
@@ -61,11 +68,11 @@ export async function buildApp({ provider = null, mailbox = [] } = {}) {
     config: CONFIG,
     authService: createTestAuthService(userRepository),
     resumeService,
-    portalService: createPortalService({ portalRepository }),
+    portalService,
     portalAdminService: createPortalAdminService({ portalRepository }),
-    gmailService, jobService, matchService, documentService,
+    gmailService, jobService, matchService, documentService, userJobService, dashboardService,
   });
-  return { app, matchRepository, jobRepository, matchService, documentRepository, scoring, provider };
+  return { app, userRepository, gmailClient, portalRepository, userJobRepository, matchRepository, jobRepository, matchService, documentRepository, scoring, provider };
 }
 
 export async function signUp(app, email = "asha@example.com", { resume = true } = {}) {

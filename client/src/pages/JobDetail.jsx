@@ -5,6 +5,8 @@ import AppHeader from "../components/AppHeader.jsx";
 import DocumentTab from "../jobs/DocumentTab.jsx";
 import { CoverNoteView, PrepKitView, ResumeView } from "../jobs/DocumentViews.jsx";
 import MatchTab from "../jobs/MatchTab.jsx";
+import TrackingPanel from "../jobs/TrackingPanel.jsx";
+import { portalName, statusLabel } from "../jobs/format.js";
 import ScoreBadge from "../jobs/ScoreBadge.jsx";
 
 const TABS = [
@@ -31,8 +33,6 @@ const DOCS = {
     View: PrepKitView,
   },
 };
-
-const PORTAL_NAMES = { naukri: "Naukri", indeed: "Indeed", shine: "Shine", glassdoor: "Glassdoor", wellfound: "Wellfound", foundit: "foundit" };
 
 /** Only ever link out to https addresses (the server already restricts them to the portal's own domain). */
 const safePostingUrl = (url) => (typeof url === "string" && url.startsWith("https://") ? url : null);
@@ -97,7 +97,7 @@ export default function JobDetail() {
   }
 
   const postingUrl = safePostingUrl(job.jobUrl);
-  const portal = PORTAL_NAMES[job.sourcePortal] ?? job.sourcePortal;
+  const portal = portalName(job.sourcePortal);
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -113,6 +113,7 @@ export default function JobDetail() {
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
           <span>From {portal}</span>
           <ScoreBadge match={job.match} />
+          <span>Status: {statusLabel(job.status)}</span>
         </div>
       </header>
 
@@ -137,6 +138,8 @@ export default function JobDetail() {
           You apply on the {portal} site yourself. This app never applies for you and never logs in to {portal}.
         </p>
       </section>
+
+      <TrackingPanel job={job} onJobChanged={(changes) => setJob((j) => ({ ...j, ...changes }))} />
 
       <div role="tablist" aria-label="Job sections" className="mb-4 flex gap-1 border-b border-slate-200">
         {TABS.map((t) => (

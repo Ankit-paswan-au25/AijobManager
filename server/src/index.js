@@ -16,6 +16,16 @@ import { createMatchService } from "./services/matchService.js";
 import { createJobService } from "./services/jobService.js";
 import { createDocumentRepository } from "./repositories/documentRepository.js";
 import { createDocumentService } from "./services/documentService.js";
+import { createAuditRepository } from "./repositories/auditRepository.js";
+import { createReviewRepository } from "./repositories/reviewRepository.js";
+import { createAdminUserRepository } from "./repositories/adminUserRepository.js";
+import { createAuditService } from "./services/auditService.js";
+import { createAdminUserService } from "./services/adminUserService.js";
+import { createAdminReviewService } from "./services/adminReviewService.js";
+import { createReviewService } from "./services/reviewService.js";
+import { createUserJobRepository } from "./repositories/userJobRepository.js";
+import { createUserJobService } from "./services/userJobService.js";
+import { createDashboardService } from "./services/dashboardService.js";
 import { createGmailClient } from "./services/gmail/gmailClient.js";
 import { createGmailService } from "./services/gmailService.js";
 import { createTokenCipher } from "./lib/tokenCipher.js";
@@ -73,8 +83,25 @@ const gmailService = config.gmail
     })
   : null;
 
+const auditRepository = createAuditRepository(pool);
+const reviewRepository = createReviewRepository(pool);
+const auditService = createAuditService({ auditRepository });
+const adminUserService = createAdminUserService({
+  adminUserRepository: createAdminUserRepository(pool),
+  userRepository: createUserRepository(pool),
+  resumeRepository,
+  auditRepository,
+});
+const adminReviewService = createAdminReviewService({ reviewRepository });
+const reviewService = createReviewService({ reviewRepository, portalRepository });
+
+const userJobService = createUserJobService({ userJobRepository: createUserJobRepository(pool) });
+const dashboardService = createDashboardService({ jobRepository, portalService });
+
 const app = createApp({
   config, authService, resumeService, portalService, portalAdminService, gmailService, jobService, matchService, documentService,
+  userJobService, dashboardService,
+  auditRepository, auditService, adminUserService, adminReviewService, reviewService,
 });
 const server = app.listen(config.PORT, () => {
   console.log(`API listening on http://localhost:${config.PORT}`);

@@ -41,6 +41,11 @@ export function createInMemoryPortalRepository({ userRepository, seed = true } =
         .sort((a, b) => (a.status === b.status ? a.name.localeCompare(b.name) : a.status === "approved" ? -1 : 1))
         .map((p) => ({ ...p, selected: mine.has(p.id) }));
     },
+    async listPendingBySubmitter(userId) {
+      return [...portals.values()]
+        .filter((p) => p.status === "pending" && p.submittedBy === userId)
+        .sort((a, b) => a.submittedAt - b.submittedAt);
+    },
     async findById(id) {
       return portals.get(id) ?? null;
     },
